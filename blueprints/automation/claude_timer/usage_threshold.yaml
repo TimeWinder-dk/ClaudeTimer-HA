@@ -1,0 +1,50 @@
+blueprint:
+  name: Claude Timer – advarsel ved forbrug
+  description: >-
+    Sender en notifikation, når en Claude-grænse passerer en tærskel (som
+    notifikationerne i Windows-appen). Lav én automation per tærskel, fx 80 og 95.
+  domain: automation
+  source_url: https://github.com/TimeWinder-dk/ClaudeTimer-HA/blob/main/blueprints/automation/claude_timer/usage_threshold.yaml
+  input:
+    usage_sensors:
+      name: Forbrugssensorer
+      description: Fx Sessionsforbrug og Ugeforbrug.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: claude_timer
+              domain: sensor
+    threshold:
+      name: Tærskel (%)
+      default: 80
+      selector:
+        number: { min: 1, max: 100, unit_of_measurement: "%" }
+    notify_device:
+      name: Enhed der skal have besked
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+
+mode: queued
+triggers:
+  - trigger: numeric_state
+    entity_id: !input usage_sensors
+    above: !input threshold
+actions:
+  - variables:
+      a: "{{ trigger.to_state.attributes }}"
+      left: >-
+        {% set r = as_datetime(a.resets_at) if a.resets_at else none %}
+        {% if r %}{% set sec = [(r - now()).total_seconds() | int, 0] | max %}
+        {% set d = sec // 86400 %}{% set h = (sec % 86400) // 3600 %}{% set m = (sec % 3600) // 60 %}
+        {{ (d ~ 'd ') if d else '' }}{{ h }}t {{ '%02d' % m }}m{% else %}ukendt tid{% endif %}
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "Claude: {{ trigger.to_state.name }} {{ trigger.to_state.state | float(0) | round(0) | int }} %"
+    message: >-
+      Nulstilles om {{ left }}.
+      {% if a.over_pace and a.hits_limit_at %}Med dette tempo rammes 100 % kl. {{ as_local(as_datetime(a.hits_limit_at)).strftime('%H:%M') }}.
+      {% elif a.forecast_percent is not none %}Prognose ved nulstilling: {{ a.forecast_percent | round(0) | int }} %.{% endif %}

@@ -1,0 +1,143 @@
+# Claude Timer-dashboard med to visninger: "Kort" (som Windows-appen) og "Målere".
+#
+# Indsæt via Indstillinger → Dashboards → Tilføj dashboard → ⋮ → Rediger →
+# ⋮ → Rå konfigurationseditor. Entity-id'erne er sprog-uafhængige; har du flere
+# konti, får den anden konto endelsen _2 (fx sensor.claude_timer_session_usage_2).
+#
+# "Kort"-visningen finder selv alle grænser (også nye modeller), mens
+# "Målere" skal have én måler per grænse; tilføj/fjern dem efter behov.
+title: Claude
+views:
+  - title: Kort
+    path: kort
+    icon: mdi:card-text-outline
+    cards:
+      - type: markdown
+        title: Claude-forbrug
+        content: >-
+          {%- set ids = integration_entities('claude_timer')
+               | select('match', '^sensor\..*_usage(_\d+)?$')
+               | reject('search', 'extra_usage') | list -%}
+          {%- for e in ids -%}
+          {%- set s = states[e] -%}
+          {%- if s and s.state not in ['unavailable', 'unknown'] -%}
+          {%- set p = s.state | float(0) -%}
+          {%- set dot = '🟢' if p < 50 else ('🟡' if p < 80 else '🔴') -%}
+          {%- set dev = device_attr(e, 'name') or '' -%}
+          {%- set a = s.attributes %}
+
+          ### {{ dot }} {{ s.name | replace(dev ~ ' ', '') }} · **{{ p | round(0) | int }} %**
+
+          {% if a.resets_at -%}
+          {%- set r = as_datetime(a.resets_at) -%}
+          {%- set sec = [(r - now()).total_seconds() | int, 0] | max -%}
+          {%- set d = sec // 86400 -%}{%- set h = (sec % 86400) // 3600 -%}{%- set m = (sec % 3600) // 60 -%}
+          ⏱ Nulstilles om **{{ (d ~ 'd ') if d else '' }}{{ h }}t {{ '%02d' % m }}m** · {{ as_local(r).strftime('%a %d.%m kl. %H:%M') }}
+          {%- else -%}
+          ⏱ Intet nulstillingstidspunkt
+          {%- endif %}
+
+          {% if p >= 100 -%}
+          ⛔ Grænsen er nået
+          {%- elif a.over_pace and a.hits_limit_at -%}
+          ⚠️ Med dette tempo: 100 % {{ as_local(as_datetime(a.hits_limit_at)).strftime('%a kl. %H:%M') }}
+          {%- elif a.forecast_percent is not none -%}
+          📈 Prognose ved nulstilling: {{ a.forecast_percent | round(0) | int }} %
+          {%- else -%}
+          📈 Prognose: for tidligt i vinduet
+          {%- endif %}
+
+          ---
+          {%- endif -%}
+          {%- endfor %}
+
+          <sub>Sidst hentet {{ as_local(states('sensor.claude_timer_last_fetched') | as_datetime).strftime('%H:%M') if states('sensor.claude_timer_last_fetched') not in ['unknown','unavailable'] else '—' }}</sub>
+
+      - type: history-graph
+        title: Forbrug over tid
+        hours_to_show: 168
+        entities:
+          - entity: sensor.claude_timer_session_usage
+          - entity: sensor.claude_timer_weekly_usage
+          - entity: sensor.claude_timer_weekly_forecast
+
+  - title: Målere
+    path: maalere
+    icon: mdi:gauge
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: sensor.claude_timer_session_usage
+                name: 5 timer
+                min: 0
+                max: 100
+                needle: true
+                severity: { green: 0, yellow: 50, red: 80 }
+              - type: gauge
+                entity: sensor.claude_timer_session_forecast
+                name: Prognose
+                min: 0
+                max: 150
+                needle: true
+                severity: { green: 0, yellow: 80, red: 100 }
+          - type: entities
+            entities:
+              - entity: sensor.claude_timer_session_reset
+                name: Nulstilles
+                format: relative
+              - entity: binary_sensor.claude_timer_session_over_pace
+                name: Over tempo
+      - type: vertical-stack
+        cards:
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: sensor.claude_timer_weekly_usage
+                name: 7 døgn
+                min: 0
+                max: 100
+                needle: true
+                severity: { green: 0, yellow: 50, red: 80 }
+              - type: gauge
+                entity: sensor.claude_timer_weekly_forecast
+                name: Prognose
+                min: 0
+                max: 150
+                needle: true
+                severity: { green: 0, yellow: 80, red: 100 }
+          - type: entities
+            entities:
+              - entity: sensor.claude_timer_weekly_reset
+                name: Nulstilles
+                format: relative
+              - entity: binary_sensor.claude_timer_weekly_over_pace
+                name: Over tempo
+      # Model-afgrænset uge (fx Fable). Fjern blokken, hvis kontoen ikke har den.
+      - type: vertical-stack
+        cards:
+          - type: horizontal-stack
+            cards:
+              - type: gauge
+                entity: sensor.claude_timer_weekly_fable_usage
+                name: Fable · 7 døgn
+                min: 0
+                max: 100
+                needle: true
+                severity: { green: 0, yellow: 50, red: 80 }
+              - type: gauge
+                entity: sensor.claude_timer_weekly_fable_forecast
+                name: Prognose
+                min: 0
+                max: 150
+                needle: true
+                severity: { green: 0, yellow: 80, red: 100 }
+          - type: entities
+            entities:
+              - entity: sensor.claude_timer_weekly_fable_reset
+                name: Nulstilles
+                format: relative
+              - entity: binary_sensor.claude_timer_weekly_fable_over_pace
+                name: Over tempo

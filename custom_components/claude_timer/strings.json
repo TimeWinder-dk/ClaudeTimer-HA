@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Log in with Claude",
+        "description": "1. [Open this link]({url}) and log in with the Claude account you want to track.\n2. Approve access. You are shown a code (it contains a `#`).\n3. Paste the entire code below (or the full URL of the page).\n\nHome Assistant gets its own login and does not share tokens with Claude Code or the Windows app.",
+        "data": {
+          "auth_code": "Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log in with Claude again",
+        "description": "Access has expired or was revoked. [Open this link]({url}), log in with the **same** account and paste the code below.",
+        "data": {
+          "auth_code": "Code"
+        }
+      },
+      "reconfigure": {
+        "title": "Renew Claude login",
+        "description": "[Open this link]({url}), log in with the same account and paste the code below.",
+        "data": {
+          "auth_code": "Code"
+        }
+      }
+    },
+    "error": {
+      "missing_code": "Paste the code from the login page.",
+      "state_mismatch": "The code belongs to another login attempt. Use the link on this page.",
+      "invalid_code": "The code was rejected or has expired. Open the link again and paste a new code.",
+      "cannot_connect": "Could not reach Claude. Try again shortly."
+    },
+    "abort": {
+      "already_configured": "This Claude account is already set up.",
+      "wrong_account": "You logged in with a different account than this entry tracks.",
+      "reauth_successful": "Logged in again.",
+      "reconfigure_successful": "Login renewed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Claude Timer options",
+        "description": "The usage API rate-limits hard (a block can last for hours), so keep the interval at 5 minutes or more.",
+        "data": {
+          "update_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "session_usage": {
+        "name": "Session usage"
+      },
+      "session_reset": {
+        "name": "Session reset"
+      },
+      "session_forecast": {
+        "name": "Session forecast"
+      },
+      "weekly_usage": {
+        "name": "Weekly usage"
+      },
+      "weekly_reset": {
+        "name": "Weekly reset"
+      },
+      "weekly_forecast": {
+        "name": "Weekly forecast"
+      },
+      "weekly_model_usage": {
+        "name": "{model} weekly usage"
+      },
+      "weekly_model_reset": {
+        "name": "{model} weekly reset"
+      },
+      "weekly_model_forecast": {
+        "name": "{model} weekly forecast"
+      },
+      "other_usage": {
+        "name": "{limit} usage"
+      },
+      "other_reset": {
+        "name": "{limit} reset"
+      },
+      "other_forecast": {
+        "name": "{limit} forecast"
+      },
+      "extra_usage": {
+        "name": "Extra usage"
+      },
+      "last_fetched": {
+        "name": "Last fetched"
+      }
+    },
+    "binary_sensor": {
+      "session_over_pace": {
+        "name": "Session over pace"
+      },
+      "weekly_over_pace": {
+        "name": "Weekly over pace"
+      },
+      "weekly_model_over_pace": {
+        "name": "{model} weekly over pace"
+      },
+      "other_over_pace": {
+        "name": "{limit} over pace"
+      }
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Log ind med Claude",
+        "description": "1. [Åbn dette link]({url}) og log ind med den Claude-konto, der skal følges.\n2. Godkend adgangen. Du får vist en kode (den indeholder et `#`).\n3. Indsæt hele koden herunder (eller hele sidens URL).\n\nHome Assistant får sit eget login og deler ikke tokens med Claude Code eller Windows-appen.",
+        "data": {
+          "auth_code": "Kode"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log ind med Claude igen",
+        "description": "Adgangen er udløbet eller tilbagekaldt. [Åbn dette link]({url}), log ind med **samme** konto og indsæt koden herunder.",
+        "data": {
+          "auth_code": "Kode"
+        }
+      },
+      "reconfigure": {
+        "title": "Forny Claude-login",
+        "description": "[Åbn dette link]({url}), log ind med samme konto og indsæt koden herunder.",
+        "data": {
+          "auth_code": "Kode"
+        }
+      }
+    },
+    "error": {
+      "missing_code": "Indsæt koden fra login-siden.",
+      "state_mismatch": "Koden hører til et andet login-forsøg. Brug linket på denne side.",
+      "invalid_code": "Koden blev afvist eller er udløbet. Åbn linket igen og indsæt en ny kode.",
+      "cannot_connect": "Claude kunne ikke kontaktes. Prøv igen om lidt."
+    },
+    "abort": {
+      "already_configured": "Denne Claude-konto er allerede sat op.",
+      "wrong_account": "Du loggede ind med en anden konto end den, denne opsætning følger.",
+      "reauth_successful": "Logget ind igen.",
+      "reconfigure_successful": "Login fornyet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Indstillinger for Claude Timer",
+        "description": "Usage-API'et rate-limiter hårdt (en spærring kan vare timer), så hold intervallet på 5 minutter eller mere.",
+        "data": {
+          "update_interval": "Opdateringsinterval (sekunder)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "session_usage": {
+        "name": "Sessionsforbrug"
+      },
+      "session_reset": {
+        "name": "Sessionsnulstilling"
+      },
+      "session_forecast": {
+        "name": "Sessionsprognose"
+      },
+      "weekly_usage": {
+        "name": "Ugeforbrug"
+      },
+      "weekly_reset": {
+        "name": "Ugenulstilling"
+      },
+      "weekly_forecast": {
+        "name": "Ugeprognose"
+      },
+      "weekly_model_usage": {
+        "name": "{model} ugeforbrug"
+      },
+      "weekly_model_reset": {
+        "name": "{model} ugenulstilling"
+      },
+      "weekly_model_forecast": {
+        "name": "{model} ugeprognose"
+      },
+      "other_usage": {
+        "name": "{limit} forbrug"
+      },
+      "other_reset": {
+        "name": "{limit} nulstilling"
+      },
+      "other_forecast": {
+        "name": "{limit} prognose"
+      },
+      "extra_usage": {
+        "name": "Ekstra forbrug"
+      },
+      "last_fetched": {
+        "name": "Sidst hentet"
+      }
+    },
+    "binary_sensor": {
+      "session_over_pace": {
+        "name": "Session over tempo"
+      },
+      "weekly_over_pace": {
+        "name": "Uge over tempo"
+      },
+      "weekly_model_over_pace": {
+        "name": "{model} uge over tempo"
+      },
+      "other_over_pace": {
+        "name": "{limit} over tempo"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "domain": "claude_timer",
+  "name": "Claude Timer",
+  "codeowners": ["@TimeWinder-dk"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/TimeWinder-dk/ClaudeTimer-HA",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/TimeWinder-dk/ClaudeTimer-HA/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

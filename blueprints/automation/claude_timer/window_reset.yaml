@@ -1,0 +1,43 @@
+blueprint:
+  name: Claude Timer – besked ved nyt vindue
+  description: Sender en notifikation, når en Claude-grænse nulstilles og et nyt vindue starter.
+  domain: automation
+  source_url: https://github.com/TimeWinder-dk/ClaudeTimer-HA/blob/main/blueprints/automation/claude_timer/window_reset.yaml
+  input:
+    reset_sensors:
+      name: Nulstillingssensorer
+      description: Fx Sessionsnulstilling og Ugenulstilling.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: claude_timer
+              domain: sensor
+              device_class: timestamp
+    notify_device:
+      name: Enhed der skal have besked
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+
+mode: queued
+triggers:
+  - trigger: state
+    entity_id: !input reset_sensors
+conditions:
+  # Kun et rigtigt skift til et senere tidspunkt, ikke opstart/utilgængelighed.
+  - condition: template
+    value_template: >-
+      {{ trigger.from_state is not none
+         and trigger.from_state.state not in ['unknown', 'unavailable']
+         and trigger.to_state.state not in ['unknown', 'unavailable']
+         and as_datetime(trigger.to_state.state) > as_datetime(trigger.from_state.state) }}
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "Claude: nyt vindue"
+    message: >-
+      {{ trigger.to_state.name }} er nulstillet. Næste nulstilling
+      {{ as_local(as_datetime(trigger.to_state.state)).strftime('%a %d.%m kl. %H:%M') }}.

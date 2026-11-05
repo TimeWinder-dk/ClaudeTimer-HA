@@ -1,0 +1,98 @@
+{
+  "entity": {
+    "sensor": {
+      "session_usage": {
+        "default": "mdi:gauge",
+        "range": {
+          "0": "mdi:gauge-empty",
+          "50": "mdi:gauge",
+          "80": "mdi:gauge-full"
+        }
+      },
+      "session_reset": {
+        "default": "mdi:timer-refresh-outline"
+      },
+      "session_forecast": {
+        "default": "mdi:chart-timeline-variant-shimmer"
+      },
+      "weekly_usage": {
+        "default": "mdi:gauge",
+        "range": {
+          "0": "mdi:gauge-empty",
+          "50": "mdi:gauge",
+          "80": "mdi:gauge-full"
+        }
+      },
+      "weekly_reset": {
+        "default": "mdi:timer-refresh-outline"
+      },
+      "weekly_forecast": {
+        "default": "mdi:chart-timeline-variant-shimmer"
+      },
+      "weekly_model_usage": {
+        "default": "mdi:gauge",
+        "range": {
+          "0": "mdi:gauge-empty",
+          "50": "mdi:gauge",
+          "80": "mdi:gauge-full"
+        }
+      },
+      "weekly_model_reset": {
+        "default": "mdi:timer-refresh-outline"
+      },
+      "weekly_model_forecast": {
+        "default": "mdi:chart-timeline-variant-shimmer"
+      },
+      "other_usage": {
+        "default": "mdi:gauge",
+        "range": {
+          "0": "mdi:gauge-empty",
+          "50": "mdi:gauge",
+          "80": "mdi:gauge-full"
+        }
+      },
+      "other_reset": {
+        "default": "mdi:timer-refresh-outline"
+      },
+      "other_forecast": {
+        "default": "mdi:chart-timeline-variant-shimmer"
+      },
+      "extra_usage": {
+        "default": "mdi:credit-card-outline"
+      },
+      "last_fetched": {
+        "default": "mdi:cloud-download-outline"
+      }
+    },
+    "binary_sensor": {
+      "session_over_pace": {
+        "default": "mdi:speedometer",
+        "state": {
+          "on": "mdi:speedometer",
+          "off": "mdi:speedometer-slow"
+        }
+      },
+      "weekly_over_pace": {
+        "default": "mdi:speedometer",
+        "state": {
+          "on": "mdi:speedometer",
+          "off": "mdi:speedometer-slow"
+        }
+      },
+      "weekly_model_over_pace": {
+        "default": "mdi:speedometer",
+        "state": {
+          "on": "mdi:speedometer",
+          "off": "mdi:speedometer-slow"
+        }
+      },
+      "other_over_pace": {
+        "default": "mdi:speedometer",
+        "state": {
+          "on": "mdi:speedometer",
+          "off": "mdi:speedometer-slow"
+        }
+      }
+    }
+  }
+}
