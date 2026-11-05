@@ -3,17 +3,36 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from pathlib import Path
 
+from homeassistant.components.frontend import add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .api import ClaudeApi
 from .auth import TokenManager, TokenSet
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
+from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .coordinator import ClaudeTimerConfigEntry, ClaudeTimerCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+CARD_URL = "/claude_timer/claude-timer-card.js"
+CARD_PATH = Path(__file__).parent / "frontend" / "claude-timer-card.js"
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Gør custom:claude-timer-card tilgængeligt uden manuel resource."""
+    version = int((await hass.async_add_executor_job(CARD_PATH.stat)).st_mtime)
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
+    )
+    add_extra_js_url(hass, f"{CARD_URL}?v={version}")
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ClaudeTimerConfigEntry) -> bool:

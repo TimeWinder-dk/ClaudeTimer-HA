@@ -29,18 +29,27 @@ der er gået af vinduet. Der vises ingen prognose i de første 5 % af vinduet (m
 Entity-id'erne er sprog-uafhængige, mens navnene er oversat (dansk/engelsk). Ved flere
 konti får den næste konto endelsen `_2`.
 
-## Visninger
+## Visninger: Claude Timer-kortet
 
-[`dashboards/claude_timer.yaml`](dashboards/claude_timer.yaml) indeholder to visninger:
+Integrationen leverer sit eget Lovelace-kort, `custom:claude-timer-card`. Det ser ud som
+Windows-appen og indlæses automatisk, så du skal ikke tilføje en resource. Hver grænse
+får sit eget kort med stor procent i niveaufarven, bjælke, prognose og en
+"NULSTILLER OM"-nedtælling med sekunder samt lokalt nulstillingstidspunkt. Med
+`view: gauges` vises de som målere med en markør for prognosen.
 
-- **Kort** – som kortene i Windows-appen: forbrug, nedtælling, lokalt
-  nulstillingstidspunkt og prognose for alle grænser (finder selv nye grænser),
-  plus en historikgraf.
-- **Målere** – gauge for forbrug og prognose per grænse med de samme farvegrænser
-  (grøn < 50 %, gul < 80 %, rød), nedtælling og "over tempo".
+```yaml
+type: custom:claude-timer-card
+view: cards            # eller: gauges
+limits: [session]      # valgfri: kun bestemte grænser (session, weekly, weekly_fable …)
+device_id: …           # valgfri: kun én konto
+```
 
-Indsæt: Indstillinger → Dashboards → Tilføj dashboard → ⋮ → Rediger dashboard → ⋮ →
-Rå konfigurationseditor.
+Kortet findes også i kortvælgeren som **Claude Timer** (Rediger dashboard → Tilføj kort).
+Nye grænser, fx en ny model, dukker op af sig selv.
+
+[`dashboards/claude_timer.yaml`](dashboards/claude_timer.yaml) er et færdigt dashboard
+med fanerne **Kort** og **Målere** plus historik. Indsæt det via Indstillinger →
+Dashboards → Tilføj dashboard → ⋮ → Rediger dashboard → ⋮ → Rå konfigurationseditor.
 
 ## Notifikationer
 
@@ -95,6 +104,7 @@ Integrationen beder kun om scopet `user:profile`.
 
 ```powershell
 python -m unittest discover -s tests -v
+node --test tests/card.test.mjs
 ```
 
 Testene dækker parsing, prognose og token-håndtering (fornyelse, rotation, samtidighed,
