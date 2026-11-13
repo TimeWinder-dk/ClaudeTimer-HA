@@ -5,8 +5,10 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
+from aiohttp import hdrs, web
+
 from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http import HomeAssistantView
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -25,12 +27,26 @@ CARD_URL = "/claude_timer/claude-timer-card.js"
 CARD_PATH = Path(__file__).parent / "frontend" / "claude-timer-card.js"
 
 
+class ClaudeTimerCardView(HomeAssistantView):
+    """Serverer kortet med "no-cache", så browseren altid spørger efter en ny udgave.
+
+    Browseren må gemme filen, men skal tjekke den (ETag/Last-Modified) ved hver
+    indlæsning; uændret giver et billigt 304. Når HACS har udskiftet filen, er en
+    almindelig genindlæsning af siden derfor nok – også i mobil-appen – uden genstart.
+    """
+
+    url = CARD_URL
+    name = "claude_timer:card"
+    requires_auth = False
+
+    async def get(self, request: web.Request) -> web.FileResponse:
+        return web.FileResponse(CARD_PATH, headers={hdrs.CACHE_CONTROL: "no-cache"})
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Gør custom:claude-timer-card tilgængeligt uden manuel resource."""
     version = int((await hass.async_add_executor_job(CARD_PATH.stat)).st_mtime)
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
-    )
+    hass.http.register_view(ClaudeTimerCardView())
     add_extra_js_url(hass, f"{CARD_URL}?v={version}")
     return True
 

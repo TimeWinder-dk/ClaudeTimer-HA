@@ -58,6 +58,10 @@ det navn, du har givet enheden i Home Assistant.
 Kortet findes også i kortvælgeren som **Claude Timer** (Rediger dashboard → Tilføj kort).
 Nye grænser, fx en ny model, dukker op af sig selv.
 
+Kortet hentes med `Cache-Control: no-cache`, så browseren altid tjekker for en ny udgave.
+Rører en opdatering kun kortet, er en almindelig genindlæsning af siden derfor nok, også i
+mobil-appen. Ændringer i selve integrationen (Python) kræver stadig en genstart.
+
 ### Dashboard med én fane per konto
 
 [`dashboards/claude_timer.yaml`](dashboards/claude_timer.yaml) bruger dashboard-strategien
