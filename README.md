@@ -29,27 +29,52 @@ der er gået af vinduet. Der vises ingen prognose i de første 5 % af vinduet (m
 Entity-id'erne er sprog-uafhængige, mens navnene er oversat (dansk/engelsk). Ved flere
 konti får den næste konto endelsen `_2`.
 
-## Visninger: Claude Timer-kortet
+## Visninger: Claude Timer-kortet og -dashboardet
 
 Integrationen leverer sit eget Lovelace-kort, `custom:claude-timer-card`. Det ser ud som
 Windows-appen og indlæses automatisk, så du skal ikke tilføje en resource. Hver grænse
 får sit eget kort med stor procent i niveaufarven, bjælke, prognose og en
-"NULSTILLER OM"-nedtælling med sekunder samt lokalt nulstillingstidspunkt. Med
-`view: gauges` vises de som målere med en markør for prognosen.
+"NULSTILLER OM"-nedtælling med sekunder samt lokalt nulstillingstidspunkt.
+
+Øverst i kortet skifter du mellem **Kort** og **Målere** (målere med en markør for
+prognosen). Valget huskes per side i browseren. Knappen ⟳ henter data igen med det samme
+(via `homeassistant.update_entity`, så en igangværende rate-limit-pause respekteres), og
+ved siden af står, hvornår der sidst blev hentet.
 
 ```yaml
 type: custom:claude-timer-card
-view: cards            # eller: gauges
-limits: [session]      # valgfri: kun bestemte grænser (session, weekly, weekly_fable …)
+view: cards            # udgangspunkt: cards eller gauges
 device_id: …           # valgfri: kun én konto
+layout: auto           # ved flere konti: compare (grænse for grænse) eller accounts (konto for konto)
+limits: [session]      # valgfri: kun bestemte grænser (session, weekly, weekly_fable …)
+toggle: false          # valgfri: skjul skiftet mellem kort og målere
+refresh: false         # valgfri: skjul ⟳-knappen
 ```
+
+Med flere konti viser kortet som standard en **sammenligning**: ét kort per grænse
+(session, uge, Fable …) med en række eller en lille måler per konto. Kontoerne vises med
+det navn, du har givet enheden i Home Assistant.
 
 Kortet findes også i kortvælgeren som **Claude Timer** (Rediger dashboard → Tilføj kort).
 Nye grænser, fx en ny model, dukker op af sig selv.
 
-[`dashboards/claude_timer.yaml`](dashboards/claude_timer.yaml) er et færdigt dashboard
-med fanerne **Kort** og **Målere** plus historik. Indsæt det via Indstillinger →
-Dashboards → Tilføj dashboard → ⋮ → Rediger dashboard → ⋮ → Rå konfigurationseditor.
+### Dashboard med én fane per konto
+
+[`dashboards/claude_timer.yaml`](dashboards/claude_timer.yaml) bruger dashboard-strategien
+`custom:claude-timer`, som bygger fanerne selv:
+
+```yaml
+strategy:
+  type: custom:claude-timer
+```
+
+- **Oversigt** (kun ved flere konti): alle konti sammenlignet grænse for grænse, plus
+  ugeforbruget over tid per konto.
+- **Én fane per konto** med kontoens kort og dens forbrug over tid.
+
+Indsæt det via Indstillinger → Dashboards → Tilføj dashboard → ⋮ → Rediger dashboard →
+⋮ → Rå konfigurationseditor. Nye konti får automatisk deres egen fane. Vil du redigere
+fanerne selv, så vælg ⋮ → *Tag kontrol*.
 
 ## Notifikationer
 

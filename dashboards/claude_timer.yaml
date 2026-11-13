@@ -1,44 +1,17 @@
-# Claude Timer-dashboard med to visninger, som i Windows-appen: "Kort" og "Målere".
+# Claude Timer-dashboard: én fane per konto plus en oversigt med alle konti.
 #
 # Indsæt via Indstillinger → Dashboards → Tilføj dashboard → ⋮ → Rediger →
-# ⋮ → Rå konfigurationseditor. Kortet (custom:claude-timer-card) følger med
-# integrationen og finder selv alle grænser, også nye modeller.
+# ⋮ → Rå konfigurationseditor. Fanerne bygges automatisk ud fra integrationens
+# konti, så nye konti og nye grænser (fx en ny model) dukker op af sig selv.
 #
-# Valgfrit på kortet:
-#   limits: [session, weekly]   # kun bestemte grænser
-#   device_id: <id>             # kun én konto, hvis du har flere
-title: Claude
-views:
-  - title: Kort
-    path: kort
-    icon: mdi:card-text-outline
-    type: panel
-    cards:
-      - type: vertical-stack
-        cards:
-          - type: custom:claude-timer-card
-            view: cards
-          - type: history-graph
-            title: Forbrug over tid
-            hours_to_show: 168
-            entities:
-              - entity: sensor.claude_timer_session_usage
-              - entity: sensor.claude_timer_weekly_usage
-              - entity: sensor.claude_timer_weekly_forecast
-
-  - title: Målere
-    path: maalere
-    icon: mdi:gauge
-    type: panel
-    cards:
-      - type: vertical-stack
-        cards:
-          - type: custom:claude-timer-card
-            view: gauges
-          - type: history-graph
-            title: Forbrug over tid
-            hours_to_show: 168
-            entities:
-              - entity: sensor.claude_timer_session_usage
-              - entity: sensor.claude_timer_weekly_usage
-              - entity: sensor.claude_timer_weekly_forecast
+# På hver fane skifter du mellem kort og målere i selve kortet, og knappen ⟳
+# henter data igen med det samme. Valget huskes per fane i browseren.
+#
+# Valgfrit:
+#   view: gauges        # start på målere i stedet for kort
+#   hours_to_show: 48   # historikkens længde (standard 168 = en uge)
+#
+# Vil du selv redigere fanerne, så vælg ⋮ → "Tag kontrol" i dashboardet. Så
+# omdannes det til almindelige kort med custom:claude-timer-card.
+strategy:
+  type: custom:claude-timer
