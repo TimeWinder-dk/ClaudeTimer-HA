@@ -78,8 +78,8 @@ class FakeSession:
             raise item
         return item
 
-    def post(self, url, json=None, timeout=None):
-        self.post_calls.append({"url": url, "json": json})
+    def post(self, url, json=None, data=None, timeout=None):
+        self.post_calls.append({"url": url, "json": json, "data": data})
         return self._next(self.posts)
 
     def get(self, url, headers=None, timeout=None):

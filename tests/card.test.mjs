@@ -53,12 +53,18 @@ test("overskrifter som UsageWindowLabels", () => {
     eyebrow: "UGENTLIG · FABLE",
     title: "Fable · 7 døgn",
   });
+  assert.deepEqual(labels({ kind: "session", group: "session", provider: "chatgpt" }, t), {
+    eyebrow: "CHATGPT · AKTUEL SESSION",
+    title: "5 timer",
+  });
 });
 
 test("entity-id'er og niveauer", () => {
   assert.equal(slugOf("sensor.claude_timer_session_usage"), "session");
   assert.equal(slugOf("sensor.claude_timer_weekly_fable_usage_2"), "weekly_fable");
   assert.equal(slugOf("sensor.claude_timer_session_forecast"), null);
+  assert.equal(slugOf("sensor.claude_timer_chatgpt_session_usage"), "chatgpt_session");
+  assert.equal(accountName({ name: "ChatGPT · a@b.c" }), "ChatGPT · a@b.c");
   assert.deepEqual([49, 50, 80].map(level), ["good", "warning", "critical"]);
   assert.match(gaugeSvg(62, 120, { track: "t", muted: "m", warning: "w" }), /stroke="w"/);
 });

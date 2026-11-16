@@ -1,4 +1,4 @@
-"""Config flow: login med Claude via PKCE og indsat kode."""
+"""Config flow: login med Claude eller ChatGPT via PKCE og indsat kode/URL."""
 
 from __future__ import annotations
 
@@ -19,8 +19,10 @@ from homeassistant.config_entries import (
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import async_fetch_profile
+from .api import Profile, async_fetch_profile, parse_chatgpt_profile
 from .auth import (
+    CHATGPT,
+    CLAUDE,
     AuthError,
     TransientError,
     async_exchange_code,
@@ -35,11 +37,15 @@ from .const import (
     CONF_AUTH_CODE,
     CONF_ORGANIZATION_NAME,
     CONF_PLAN,
+    CONF_PROVIDER,
     CONF_UPDATE_INTERVAL,
+    CONF_WORKSPACE_ID,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     MAX_UPDATE_INTERVAL,
     MIN_UPDATE_INTERVAL,
+    PROVIDER_CHATGPT,
+    PROVIDER_CLAUDE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,11 +59,21 @@ class ClaudeTimerConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._verifier, self._challenge = generate_pkce()
         self._state = secrets.token_urlsafe(32)
+        self._provider = PROVIDER_CLAUDE
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self._async_step_code("user", user_input)
+        return self.async_show_menu(step_id="user", menu_options=[PROVIDER_CLAUDE, PROVIDER_CHATGPT])
+
+    async def async_step_claude(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        self._provider = PROVIDER_CLAUDE
+        return await self._async_step_code("claude", user_input)
+
+    async def async_step_chatgpt(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        self._provider = PROVIDER_CHATGPT
+        return await self._async_step_code("chatgpt", user_input)
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        self._provider = entry_data.get(CONF_PROVIDER, PROVIDER_CLAUDE)
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
@@ -68,7 +84,28 @@ class ClaudeTimerConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        self._provider = self._get_reconfigure_entry().data.get(CONF_PROVIDER, PROVIDER_CLAUDE)
         return await self._async_step_code("reconfigure", user_input)
+
+    async def _async_login(self, code: str) -> tuple[Profile, dict[str, Any]]:
+        """Byt koden til tokens og find kontoen. Returnerer profil og entry-data."""
+        session = async_get_clientsession(self.hass)
+        if self._provider == PROVIDER_CHATGPT:
+            tokens = await async_exchange_code(session, code, self._state, self._verifier, CHATGPT)
+            profile = parse_chatgpt_profile(tokens.id_token, tokens.access_token)
+        else:
+            tokens = await async_exchange_code(session, code, self._state, self._verifier, CLAUDE)
+            profile = await async_fetch_profile(session, tokens.access_token)
+        return profile, {
+            **tokens.as_data(),
+            CONF_PROVIDER: self._provider,
+            CONF_ACCOUNT_ID: profile.account_id,
+            CONF_ACCOUNT_NAME: profile.name,
+            CONF_ACCOUNT_EMAIL: profile.email,
+            CONF_ORGANIZATION_NAME: profile.organization,
+            CONF_PLAN: profile.plan,
+            CONF_WORKSPACE_ID: profile.workspace_id,
+        }
 
     async def _async_step_code(
         self, step_id: str, user_input: dict[str, Any] | None
@@ -82,24 +119,14 @@ class ClaudeTimerConfigFlow(ConfigFlow, domain=DOMAIN):
                 # Koden hører til et andet login-forsøg (eller er forfalsket).
                 errors["base"] = "state_mismatch"
             else:
-                session = async_get_clientsession(self.hass)
                 try:
-                    tokens = await async_exchange_code(session, code, self._state, self._verifier)
-                    profile = await async_fetch_profile(session, tokens.access_token)
+                    profile, data = await self._async_login(code)
                 except AuthError:
                     errors["base"] = "invalid_code"
                 except TransientError:
-                    _LOGGER.warning("Login mod Claude fejlede midlertidigt", exc_info=True)
+                    _LOGGER.warning("Login mod %s fejlede midlertidigt", self._provider, exc_info=True)
                     errors["base"] = "cannot_connect"
                 else:
-                    data = {
-                        **tokens.as_data(),
-                        CONF_ACCOUNT_ID: profile.account_id,
-                        CONF_ACCOUNT_NAME: profile.name,
-                        CONF_ACCOUNT_EMAIL: profile.email,
-                        CONF_ORGANIZATION_NAME: profile.organization,
-                        CONF_PLAN: profile.plan,
-                    }
                     await self.async_set_unique_id(profile.account_id)
                     if self.source == SOURCE_REAUTH:
                         # Reauth må ikke stille stille skifte konto.
@@ -119,10 +146,15 @@ class ClaudeTimerConfigFlow(ConfigFlow, domain=DOMAIN):
                         options={CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL},
                     )
 
+        is_chatgpt = self._provider == PROVIDER_CHATGPT
+        client = CHATGPT if is_chatgpt else CLAUDE
         return self.async_show_form(
             step_id=step_id,
             data_schema=CODE_SCHEMA,
-            description_placeholders={"url": authorize_url(self._challenge, self._state)},
+            description_placeholders={
+                "url": authorize_url(self._challenge, self._state, client),
+                "service": "ChatGPT" if is_chatgpt else "Claude",
+            },
             errors=errors,
         )
 

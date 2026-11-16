@@ -12,7 +12,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import ClaudeApi, RateLimitedError
+from .api import ChatGptApi, ClaudeApi, RateLimitedError
 from .auth import AuthError, TransientError
 from .const import (
     CONF_UPDATE_INTERVAL,
@@ -21,7 +21,7 @@ from .const import (
     DOMAIN,
     RESET_REFRESH_DELAY,
 )
-from .usage import UsageSnapshot, parse_usage
+from .usage import UsageSnapshot
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +31,9 @@ type ClaudeTimerConfigEntry = ConfigEntry[ClaudeTimerCoordinator]
 class ClaudeTimerCoordinator(DataUpdateCoordinator[UsageSnapshot]):
     config_entry: ClaudeTimerConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: ClaudeTimerConfigEntry, api: ClaudeApi) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: ClaudeTimerConfigEntry, api: ClaudeApi | ChatGptApi
+    ) -> None:
         super().__init__(
             hass,
             _LOGGER,
@@ -58,13 +60,13 @@ class ClaudeTimerCoordinator(DataUpdateCoordinator[UsageSnapshot]):
         except RateLimitedError as err:
             wait = err.retry_after or DEFAULT_RATE_LIMIT_BACKOFF
             self.backoff_until = now + timedelta(seconds=wait)
-            _LOGGER.warning("Claude rate-limiter; venter %.0f minutter", wait / 60)
+            _LOGGER.warning("%s; venter %.0f minutter", err, wait / 60)
             raise UpdateFailed(str(err)) from err
         except TransientError as err:
             raise UpdateFailed(str(err)) from err
 
         self.backoff_until = None
-        snapshot = parse_usage(raw, now)
+        snapshot = self.api.parse_usage(raw, now)
         self._schedule_reset_refresh(snapshot)
         return snapshot
 

@@ -33,6 +33,9 @@ class UsageLimit:
     surface: str | None = None
     severity: str | None = None
     is_active: bool | None = None
+    # Vinduets længde i sekunder, når API'et selv oplyser den (ChatGPT); ellers ud
+    # fra kind. Sekunder frem for timedelta, så diagnostikken kan serialisere den.
+    window_seconds: float | None = None
 
     @property
     def key(self) -> str:
@@ -59,6 +62,8 @@ class UsageLimit:
 
     @property
     def window_length(self) -> timedelta | None:
+        if self.window_seconds:
+            return timedelta(seconds=self.window_seconds)
         return WINDOW_LENGTHS.get(self.kind)
 
     @property
@@ -186,6 +191,44 @@ def parse_usage(raw: dict[str, Any], now: datetime) -> UsageSnapshot:
                 limits[limit.key] = limit
 
     return UsageSnapshot(limits=limits, extra=_parse_extra(raw), fetched_at=now)
+
+
+def parse_chatgpt_usage(raw: dict[str, Any], now: datetime) -> UsageSnapshot:
+    """Byg et snapshot fra ChatGPTs rate_limit med primary- og secondary_window.
+
+    Vinduerne beskrives kun ved deres længde. Kendte længder får samme typer som
+    Claudes grænser (session, weekly_all), så navne, kort og prognose genbruges.
+    """
+    limits: dict[str, UsageLimit] = {}
+    rate_limit = raw.get("rate_limit") or {}
+    for field in ("primary_window", "secondary_window"):
+        window = rate_limit.get(field)
+        if not isinstance(window, dict):
+            continue
+        seconds = _number(window.get("limit_window_seconds"))
+        kind, group = _chatgpt_kind(seconds)
+        reset = _number(window.get("reset_at"))
+        limit = UsageLimit(
+            kind=kind,
+            group=group,
+            percent=_number(window.get("used_percent")) or 0.0,
+            resets_at=datetime.fromtimestamp(reset, UTC) if reset else None,
+            window_seconds=seconds,
+        )
+        limits.setdefault(limit.key, limit)
+    return UsageSnapshot(limits=limits, extra=None, fetched_at=now)
+
+
+def _chatgpt_kind(seconds: float | None) -> tuple[str, str]:
+    if seconds == WINDOW_LENGTHS["session"].total_seconds():
+        return "session", "session"
+    if seconds == WINDOW_LENGTHS["weekly_all"].total_seconds():
+        return "weekly_all", "weekly"
+    if not seconds:
+        return "limit", "other"
+    if seconds % 86400 == 0:
+        return f"limit_{int(seconds // 86400)}d", "other"
+    return f"limit_{round(seconds / 3600)}h", "other"
 
 
 def _parse_extra(raw: dict[str, Any]) -> ExtraUsage | None:

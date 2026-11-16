@@ -1,4 +1,4 @@
-"""Claude Timer: Claude-forbrug, nulstillinger og prognoser i Home Assistant."""
+"""Claude Timer: Claude- og ChatGPT-forbrug, nulstillinger og prognoser i Home Assistant."""
 
 from __future__ import annotations
 
@@ -15,9 +15,16 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
-from .api import ClaudeApi
-from .auth import TokenManager, TokenSet
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .api import ChatGptApi, ClaudeApi
+from .auth import CHATGPT, CLAUDE, TokenManager, TokenSet
+from .const import (
+    CONF_PROVIDER,
+    CONF_UPDATE_INTERVAL,
+    CONF_WORKSPACE_ID,
+    DEFAULT_UPDATE_INTERVAL,
+    DOMAIN,
+    PROVIDER_CHATGPT,
+)
 from .coordinator import ClaudeTimerConfigEntry, ClaudeTimerCoordinator
 
 PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
@@ -57,8 +64,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ClaudeTimerConfigEntry) 
     def _persist(tokens: TokenSet) -> None:
         hass.config_entries.async_update_entry(entry, data={**entry.data, **tokens.as_data()})
 
-    tokens = TokenManager(session, TokenSet.from_data(dict(entry.data)), _persist)
-    coordinator = ClaudeTimerCoordinator(hass, entry, ClaudeApi(session, tokens))
+    stored = TokenSet.from_data(dict(entry.data))
+    if entry.data.get(CONF_PROVIDER) == PROVIDER_CHATGPT:
+        tokens = TokenManager(session, stored, _persist, client=CHATGPT)
+        api = ChatGptApi(session, tokens, entry.data.get(CONF_WORKSPACE_ID))
+    else:
+        tokens = TokenManager(session, stored, _persist, client=CLAUDE)
+        api = ClaudeApi(session, tokens)
+    coordinator = ClaudeTimerCoordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator

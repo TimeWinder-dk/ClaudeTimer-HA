@@ -14,10 +14,18 @@ from .const import (
     CONF_ACCOUNT_ID,
     CONF_ACCOUNT_NAME,
     CONF_REFRESH_TOKEN,
+    CONF_WORKSPACE_ID,
 )
 from .coordinator import ClaudeTimerConfigEntry
 
-TO_REDACT = {CONF_ACCESS_TOKEN, CONF_REFRESH_TOKEN, CONF_ACCOUNT_EMAIL, CONF_ACCOUNT_ID, CONF_ACCOUNT_NAME}
+TO_REDACT = {
+    CONF_ACCESS_TOKEN,
+    CONF_REFRESH_TOKEN,
+    CONF_ACCOUNT_EMAIL,
+    CONF_ACCOUNT_ID,
+    CONF_ACCOUNT_NAME,
+    CONF_WORKSPACE_ID,
+}
 
 
 async def async_get_config_entry_diagnostics(

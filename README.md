@@ -8,6 +8,10 @@ både som kort og som målere.
 Grænserne bygges dynamisk ud fra API'ets `limits`-liste, ligesom i Windows-appen,
 så nye grænser dukker op uden opdatering.
 
+Integrationen kan også følge **ChatGPT-forbruget** (Codex' 5-timers og ugentlige
+grænse, som i Codex' egen forbrugsmenu). Hvert login er sin egen enhed, så Claude og
+ChatGPT kan følges side om side og sammenlignes i kortet.
+
 ## Sensorer
 
 For hver grænse (`<g>` er `session`, `weekly`, `weekly_fable`, …):
@@ -28,6 +32,11 @@ der er gået af vinduet. Der vises ingen prognose i de første 5 % af vinduet (m
 
 Entity-id'erne er sprog-uafhængige, mens navnene er oversat (dansk/engelsk). Ved flere
 konti får den næste konto endelsen `_2`.
+
+ChatGPT-entiteterne hedder det samme med `chatgpt_` foran grænsen, fx
+`sensor.claude_timer_chatgpt_session_usage`, `sensor.claude_timer_chatgpt_weekly_reset`
+og `sensor.claude_timer_chatgpt_last_fetched`, og forbrugssensoren har attributten
+`provider: chatgpt`. I kortet står der "CHATGPT ·" foran overskriften.
 
 ## Visninger: Claude Timer-kortet og -dashboardet
 
@@ -99,7 +108,8 @@ installér *Claude Timer* og genstart Home Assistant.
 og genstart.
 
 Tilføj derefter integrationen under Indstillinger → Enheder og tjenester →
-Tilføj integration → *Claude Timer*.
+Tilføj integration → *Claude Timer*, og vælg *Claude-forbrug* eller
+*ChatGPT-forbrug (Codex)*. Tilføj integrationen én gang til for at følge begge.
 
 ## Login og token-fornyelse
 
@@ -128,6 +138,23 @@ Integrationen beder kun om scopet `user:profile`.
 > **Bemærk:** Login bruger Claude Codes offentlige OAuth-klient-id, ligesom andre
 > uofficielle værktøjer. Det er ikke et officielt Anthropic-API og kan ændre sig eller
 > stoppe uden varsel. Brug det til personligt forbrug.
+
+### ChatGPT
+
+ChatGPT-loginet foregår på samme måde som Codex' eget login (OAuth + PKCE mod
+`auth.openai.com`). Efter godkendelsen sender OpenAI browseren til
+`http://localhost:1455/auth/callback?code=…`. Det er adressen, hvor Codex normalt
+lytter, og siden kan ikke indlæses. Kopiér **hele URL'en** fra adresselinjen og
+indsæt den. Koden er kortlivet, så indsæt den med det samme.
+
+Home Assistant får også her sit eget refresh-token, så Codex på pc'en ikke logges ud.
+Fornyelse, reauth og pause ved 429 virker som for Claude. Forbruget hentes fra
+`chatgpt.com/backend-api/wham/usage` (samme endpoint som Codex' forbrugsmenu), og
+identiteten (e-mail, plan og arbejdsområde) læses fra login-tokenet. Der hentes ingen
+profil. Integrationen beder om `openid profile email offline_access`.
+
+> **Bemærk:** Login bruger Codex' offentlige OAuth-klient-id, og usage-endpointet er
+> ikke et officielt OpenAI-API. Begge kan ændre sig uden varsel.
 
 ## Udvikling
 

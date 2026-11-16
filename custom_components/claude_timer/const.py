@@ -13,6 +13,19 @@ OAUTH_TOKEN_URL = "https://console.anthropic.com/v1/oauth/token"
 OAUTH_REDIRECT_URI = "https://console.anthropic.com/oauth/code/callback"
 OAUTH_SCOPES = "user:profile"
 
+# ChatGPT (Codex-forbruget). Samme offentlige klient som Codex; igen et eget
+# login, så Codex på pc'en ikke logges ud, når refresh-tokenet roterer.
+CHATGPT_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+CHATGPT_AUTHORIZE_URL = "https://auth.openai.com/oauth/authorize"
+CHATGPT_TOKEN_URL = "https://auth.openai.com/oauth/token"
+CHATGPT_REDIRECT_URI = "http://localhost:1455/auth/callback"
+CHATGPT_SCOPES = "openid profile email offline_access"
+CHATGPT_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
+CHATGPT_ID_CLAIM = "https://api.openai.com/auth"
+
+PROVIDER_CLAUDE = "claude"
+PROVIDER_CHATGPT = "chatgpt"
+
 API_BASE_URL = "https://api.anthropic.com"
 USAGE_PATH = "/api/oauth/usage"
 PROFILE_PATH = "/api/oauth/profile"
@@ -45,3 +58,7 @@ CONF_ORGANIZATION_NAME = "organization_name"
 CONF_PLAN = "plan"
 CONF_UPDATE_INTERVAL = "update_interval"
 CONF_AUTH_CODE = "auth_code"
+# Mangler i entries fra før 1.3.0, som alle er Claude.
+CONF_PROVIDER = "provider"
+# ChatGPT-arbejdsområdet (sendes som ChatGPT-Account-Id).
+CONF_WORKSPACE_ID = "workspace_id"

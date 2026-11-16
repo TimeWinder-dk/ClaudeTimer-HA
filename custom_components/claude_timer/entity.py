@@ -8,12 +8,42 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_ACCOUNT_EMAIL, CONF_ACCOUNT_NAME, CONF_ORGANIZATION_NAME, CONF_PLAN, DOMAIN
+from .const import (
+    CONF_ACCOUNT_EMAIL,
+    CONF_ACCOUNT_NAME,
+    CONF_ORGANIZATION_NAME,
+    CONF_PLAN,
+    CONF_PROVIDER,
+    DOMAIN,
+    PROVIDER_CHATGPT,
+)
 from .coordinator import ClaudeTimerConfigEntry, ClaudeTimerCoordinator
 from .usage import UsageLimit
 
 
+def is_chatgpt(entry: ClaudeTimerConfigEntry) -> bool:
+    return entry.data.get(CONF_PROVIDER) == PROVIDER_CHATGPT
+
+
+def object_prefix(entry: ClaudeTimerConfigEntry) -> str:
+    """Start på entity_id'et: claude_timer_ for Claude, claude_timer_chatgpt_ for ChatGPT.
+
+    ChatGPT får sit eget præfiks, så dets 5 timer og uge ikke bliver til
+    sensor.claude_timer_session_usage_2 ved siden af Claudes.
+    """
+    return "claude_timer_chatgpt_" if is_chatgpt(entry) else "claude_timer_"
+
+
 def device_info(entry: ClaudeTimerConfigEntry) -> DeviceInfo:
+    if is_chatgpt(entry):
+        return DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=f"ChatGPT · {entry.data.get(CONF_ACCOUNT_EMAIL) or 'konto'}",
+            model=entry.data.get(CONF_PLAN) or "ChatGPT",
+            manufacturer="OpenAI",
+            entry_type=DeviceEntryType.SERVICE,
+            configuration_url="https://chatgpt.com/codex/settings/usage",
+        )
     name = entry.data.get(CONF_ACCOUNT_NAME) or entry.data.get(CONF_ACCOUNT_EMAIL) or "Claude"
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
@@ -48,7 +78,7 @@ class LimitEntity(ClaudeTimerEntity):
         self._attr_translation_placeholders = placeholders
         # Sprog-uafhængige entity_id'er, så dashboard og blueprints virker uanset
         # HA's sprog, fx sensor.claude_timer_session_usage.
-        self.entity_id = f"{domain}.claude_timer_{limit.object_slug}_{self.metric}"
+        self.entity_id = f"{domain}.{object_prefix(coordinator.config_entry)}{limit.object_slug}_{self.metric}"
 
     @property
     def limit(self) -> UsageLimit | None:

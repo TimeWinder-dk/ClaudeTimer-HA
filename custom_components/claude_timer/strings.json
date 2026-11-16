@@ -2,24 +2,39 @@
   "config": {
     "step": {
       "user": {
+        "title": "What do you want to track?",
+        "description": "Each login becomes its own device with its own sensors.",
+        "menu_options": {
+          "claude": "Claude usage",
+          "chatgpt": "ChatGPT usage (Codex)"
+        }
+      },
+      "claude": {
         "title": "Log in with Claude",
         "description": "1. [Open this link]({url}) and log in with the Claude account you want to track.\n2. Approve access. You are shown a code (it contains a `#`).\n3. Paste the entire code below (or the full URL of the page).\n\nHome Assistant gets its own login and does not share tokens with Claude Code or the Windows app.",
         "data": {
           "auth_code": "Code"
         }
       },
-      "reauth_confirm": {
-        "title": "Log in with Claude again",
-        "description": "Access has expired or was revoked. [Open this link]({url}), log in with the **same** account and paste the code below.",
+      "chatgpt": {
+        "title": "Log in with ChatGPT",
+        "description": "1. [Open this link]({url}) and log in with the ChatGPT account you use in Codex.\n2. After approving, the browser is sent to a `localhost:1455` page that cannot load. That is expected.\n3. Copy the **full URL** from the address bar (it contains `code=`) and paste it below.\n\nHome Assistant gets its own login and does not log Codex out.",
         "data": {
-          "auth_code": "Code"
+          "auth_code": "URL from the address bar"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log in again",
+        "description": "Access to {service} has expired or was revoked. [Open this link]({url}), log in with the **same** account and paste the code (Claude) or the full URL from the address bar (ChatGPT) below.",
+        "data": {
+          "auth_code": "Code or URL"
         }
       },
       "reconfigure": {
-        "title": "Renew Claude login",
-        "description": "[Open this link]({url}), log in with the same account and paste the code below.",
+        "title": "Renew login",
+        "description": "[Open this link]({url}), log in to {service} with the same account and paste the code (Claude) or the full URL from the address bar (ChatGPT) below.",
         "data": {
-          "auth_code": "Code"
+          "auth_code": "Code or URL"
         }
       }
     },
@@ -27,10 +42,10 @@
       "missing_code": "Paste the code from the login page.",
       "state_mismatch": "The code belongs to another login attempt. Use the link on this page.",
       "invalid_code": "The code was rejected or has expired. Open the link again and paste a new code.",
-      "cannot_connect": "Could not reach Claude. Try again shortly."
+      "cannot_connect": "Could not reach the login service. Try again shortly."
     },
     "abort": {
-      "already_configured": "This Claude account is already set up.",
+      "already_configured": "This account is already set up.",
       "wrong_account": "You logged in with a different account than this entry tracks.",
       "reauth_successful": "Logged in again.",
       "reconfigure_successful": "Login renewed."

@@ -58,6 +58,27 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(limit("weekly_scoped", model="Fable").translation(), ("weekly_model", {"model": "Fable"}))
         self.assertEqual(limit("monthly_x").translation(), ("other", {"limit": "Monthly x"}))
 
+    def test_chatgpt_windows_map_to_claudes_kinds(self):
+        reset = int((NOW + timedelta(hours=2)).timestamp())
+        raw = {"plan_type": "team", "rate_limit": {
+            "primary_window": {"used_percent": 56, "limit_window_seconds": 18000, "reset_at": reset},
+            "secondary_window": {"used_percent": 12, "limit_window_seconds": 604800, "reset_at": reset},
+        }}
+        snap = usage.parse_chatgpt_usage(raw, NOW)
+        self.assertEqual(list(snap.limits), ["session", "weekly_all"])
+        self.assertEqual(snap.limits["session"].percent, 56)
+        self.assertEqual(snap.limits["session"].resets_at, NOW + timedelta(hours=2))
+        self.assertEqual(snap.limits["weekly_all"].object_slug, "weekly")
+        self.assertIsNone(snap.extra)
+
+    def test_chatgpt_unknown_window_keeps_its_length(self):
+        raw = {"rate_limit": {"primary_window": None,
+                              "secondary_window": {"used_percent": 3, "limit_window_seconds": 86400}}}
+        lim = usage.parse_chatgpt_usage(raw, NOW).limits["limit_1d"]
+        self.assertEqual(lim.window_length, timedelta(days=1))
+        self.assertIsNone(lim.resets_at)
+        self.assertEqual(usage.parse_chatgpt_usage({}, NOW).limits, {})
+
     def test_levels_match_windows_app(self):
         self.assertEqual([usage.usage_level(p) for p in (49.9, 50, 79.9, 80)],
                          ["good", "warning", "warning", "critical"])

@@ -1,15 +1,16 @@
 /*
  * Claude Timer-kort og -dashboard til Home Assistant.
  *
- * Viser Claude-grænserne som i Windows-appen ClaudeTimer: ét kort per grænse med
- * stor procent, bjælke, prognose og nedtælling med sekunder – eller som målere.
+ * Viser Claude- og ChatGPT-grænserne som i Windows-appen ClaudeTimer: ét kort per
+ * grænse med stor procent, bjælke, prognose og nedtælling med sekunder – eller som
+ * målere. ChatGPT-grænser har "CHATGPT ·" foran overskriften.
  * Skiftet mellem kort og målere sidder i selve kortet og huskes per side.
  *
  *   type: custom:claude-timer-card
  *   view: cards          # cards | gauges (udgangspunkt; kan skiftes i kortet)
  *   device_id: …         # valgfri: kun én konto
  *   layout: auto         # auto | compare | accounts (ved flere konti)
- *   limits: [session]    # valgfri: kun disse grænser (session, weekly, weekly_fable …)
+ *   limits: [session]    # valgfri: kun disse grænser (session, weekly, weekly_fable, chatgpt_session …)
  *   toggle: false        # valgfri: skjul skiftet mellem kort og målere
  *   refresh: false       # valgfri: skjul knappen der henter data igen
  *
@@ -117,6 +118,8 @@ export function labels(attrs, t) {
   else if (kind === "weekly_all") title = t.title7d;
   else if (kind === "weekly_scoped") title = model ? t.titleModel(model) : t.titleScoped;
   else title = humanize(kind);
+  // ChatGPT bruger samme vinduer (5 timer, 7 døgn); mærket skiller dem fra Claudes.
+  if (attrs.provider === "chatgpt") eyebrow = `CHATGPT · ${eyebrow}`;
   return { eyebrow, title };
 }
 
@@ -370,7 +373,7 @@ class ClaudeTimerCard extends Base {
   _fetchers(deviceIds) {
     const hass = this._hass;
     return Object.values(hass.entities || {})
-      .filter((e) => e.platform === "claude_timer" && /^sensor\.claude_timer_last_fetched(?:_\d+)?$/.test(e.entity_id))
+      .filter((e) => e.platform === "claude_timer" && /^sensor\.claude_timer_(?:chatgpt_)?last_fetched(?:_\d+)?$/.test(e.entity_id))
       .filter((e) => deviceIds.has(e.device_id))
       .map((e) => hass.states[e.entity_id])
       .filter(Boolean);
@@ -421,9 +424,12 @@ class ClaudeTimerCard extends Base {
       .map((e) => ({ entry: e, slug: slugOf(e.entity_id), state: hass.states[e.entity_id] }))
       .filter(({ state }) => state && !["unavailable", "unknown"].includes(state.state))
       .sort((a, b) => {
+        // Claude før ChatGPT, derefter grænsetype og model.
+        const pa = a.state.attributes.provider === "chatgpt" ? 1 : 0;
+        const pb = b.state.attributes.provider === "chatgpt" ? 1 : 0;
         const ka = KIND_ORDER[a.state.attributes.kind] ?? 9;
         const kb = KIND_ORDER[b.state.attributes.kind] ?? 9;
-        return ka - kb || String(a.state.attributes.model || "").localeCompare(b.state.attributes.model || "");
+        return pa - pb || ka - kb || String(a.state.attributes.model || "").localeCompare(b.state.attributes.model || "");
       });
   }
 
@@ -594,7 +600,7 @@ export function generateDashboard(hass, options = {}) {
   const views = [];
   if (accounts.length !== 1) {
     // Oversigten: hver grænse med alle konti; historikken viser ugeforbruget per konto.
-    const weekly = entries.filter((e) => slugOf(e.entity_id) === "weekly");
+    const weekly = entries.filter((e) => ["weekly", "chatgpt_weekly"].includes(slugOf(e.entity_id)));
     views.push(page(t.overview, "oversigt", card({ layout: "compare" }), sorted(weekly)));
   }
   const used = new Set(["oversigt"]);

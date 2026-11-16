@@ -16,11 +16,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import json
 import logging
 import secrets
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -28,6 +29,11 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import aiohttp
 
 from .const import (
+    CHATGPT_AUTHORIZE_URL,
+    CHATGPT_CLIENT_ID,
+    CHATGPT_REDIRECT_URI,
+    CHATGPT_SCOPES,
+    CHATGPT_TOKEN_URL,
     CONF_ACCESS_TOKEN,
     CONF_EXPIRES_AT,
     CONF_REFRESH_TOKEN,
@@ -59,10 +65,54 @@ class TransientError(Exception):
 
 
 @dataclass(frozen=True)
+class OAuthClient:
+    """Én udbyders offentlige OAuth-klient og dens små forskelle."""
+
+    client_id: str
+    authorize_url: str
+    token_url: str
+    redirect_uri: str
+    scopes: str
+    authorize_extra: dict[str, str] = field(default_factory=dict)
+    # OpenAI vil have kode-ombytningen som formular; Anthropic tager JSON.
+    form_exchange: bool = False
+    refresh_scope: str | None = None
+
+
+CLAUDE = OAuthClient(
+    client_id=OAUTH_CLIENT_ID,
+    authorize_url=OAUTH_AUTHORIZE_URL,
+    token_url=OAUTH_TOKEN_URL,
+    redirect_uri=OAUTH_REDIRECT_URI,
+    scopes=OAUTH_SCOPES,
+    authorize_extra={"code": "true"},
+)
+
+# Samme parametre som Codex' eget login. Redirect går til localhost:1455, hvor
+# Codex ellers lytter; siden kan ikke åbnes, men URL'en indeholder koden.
+CHATGPT = OAuthClient(
+    client_id=CHATGPT_CLIENT_ID,
+    authorize_url=CHATGPT_AUTHORIZE_URL,
+    token_url=CHATGPT_TOKEN_URL,
+    redirect_uri=CHATGPT_REDIRECT_URI,
+    scopes=CHATGPT_SCOPES,
+    authorize_extra={
+        "id_token_add_organizations": "true",
+        "codex_cli_simplified_flow": "true",
+        "originator": "codex_cli_rs",
+    },
+    form_exchange=True,
+    refresh_scope="openid profile email",
+)
+
+
+@dataclass(frozen=True)
 class TokenSet:
     access_token: str
     refresh_token: str
     expires_at: float  # unix-sekunder
+    # Kun ved login (OpenAI): identiteten bag tokenet. Gemmes ikke.
+    id_token: str | None = field(default=None, compare=False)
 
     @classmethod
     def from_data(cls, data: dict[str, Any]) -> TokenSet:
@@ -87,19 +137,30 @@ def generate_pkce() -> tuple[str, str]:
     return verifier, challenge
 
 
-def authorize_url(challenge: str, state: str) -> str:
-    return f"{OAUTH_AUTHORIZE_URL}?" + urlencode(
+def authorize_url(challenge: str, state: str, client: OAuthClient = CLAUDE) -> str:
+    return f"{client.authorize_url}?" + urlencode(
         {
-            "code": "true",
-            "client_id": OAUTH_CLIENT_ID,
+            **client.authorize_extra,
+            "client_id": client.client_id,
             "response_type": "code",
-            "redirect_uri": OAUTH_REDIRECT_URI,
-            "scope": OAUTH_SCOPES,
+            "redirect_uri": client.redirect_uri,
+            "scope": client.scopes,
             "code_challenge": challenge,
             "code_challenge_method": "S256",
             "state": state,
         }
     )
+
+
+def jwt_claims(token: str | None) -> dict[str, Any]:
+    """Payload fra en JWT uden signaturtjek; den kom lige fra token-endpointet over TLS."""
+    try:
+        payload = (token or "").split(".")[1]
+        decoded = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        claims = json.loads(decoded)
+    except (IndexError, ValueError):
+        return {}
+    return claims if isinstance(claims, dict) else {}
 
 
 def split_pasted_code(pasted: str) -> tuple[str, str | None]:
@@ -130,13 +191,19 @@ def parse_retry_after(value: str | None) -> float | None:
         return None
 
 
-async def _post_token(session: aiohttp.ClientSession, payload: dict[str, Any]) -> dict[str, Any]:
+async def _post_token(
+    session: aiohttp.ClientSession,
+    payload: dict[str, Any],
+    client: OAuthClient = CLAUDE,
+    form: bool = False,
+) -> dict[str, Any]:
     """POST til token-endpointet og klassificér fejl."""
+    body_kwargs = {"data": payload} if form else {"json": payload}
     try:
         async with session.post(
-            OAUTH_TOKEN_URL,
-            json=payload,
+            client.token_url,
             timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
+            **body_kwargs,
         ) as resp:
             status = resp.status
             try:
@@ -148,6 +215,11 @@ async def _post_token(session: aiohttp.ClientSession, payload: dict[str, Any]) -
         raise TransientError(f"Token-endpointet kunne ikke kontaktes: {err}") from err
 
     error = body.get("error") if isinstance(body, dict) else None
+    if isinstance(error, dict):
+        # OpenAI pakker fejlen ind: {"error": {"code": "...", "message": "..."}}.
+        error = error.get("code")
+    if not isinstance(error, str):
+        error = None
     if status in (400, 401, 403) or error in _PERMANENT_ERRORS:
         raise AuthError(f"Tilladelsen blev afvist ({status}, {error or 'ukendt'})")
     if status >= 300:  # 429, 5xx m.m.
@@ -160,30 +232,37 @@ async def _post_token(session: aiohttp.ClientSession, payload: dict[str, Any]) -
 def _token_set(body: dict[str, Any], previous_refresh: str, started: float) -> TokenSet:
     expires_in = body.get("expires_in")
     if not isinstance(expires_in, (int, float)) or expires_in <= 0:
-        expires_in = 3600
+        # Uden expires_in: brug tokenets egen exp, så et langtlevende token ikke
+        # fornyes (og refresh-tokenet roteres) hver time.
+        exp = jwt_claims(body["access_token"]).get("exp")
+        expires_in = exp - started if isinstance(exp, (int, float)) and exp > started else 3600
     return TokenSet(
         access_token=body["access_token"],
         refresh_token=body.get("refresh_token") or previous_refresh,
         # Regn fra før forespørgslen, så netværkstid ikke forlænger levetiden.
         expires_at=started + float(expires_in),
+        id_token=body.get("id_token"),
     )
 
 
 async def async_exchange_code(
-    session: aiohttp.ClientSession, code: str, state: str, verifier: str
+    session: aiohttp.ClientSession,
+    code: str,
+    state: str,
+    verifier: str,
+    client: OAuthClient = CLAUDE,
 ) -> TokenSet:
     started = time.time()
-    body = await _post_token(
-        session,
-        {
-            "grant_type": "authorization_code",
-            "code": code,
-            "state": state,
-            "client_id": OAUTH_CLIENT_ID,
-            "redirect_uri": OAUTH_REDIRECT_URI,
-            "code_verifier": verifier,
-        },
-    )
+    payload = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": client.client_id,
+        "redirect_uri": client.redirect_uri,
+        "code_verifier": verifier,
+    }
+    if not client.form_exchange:
+        payload["state"] = state
+    body = await _post_token(session, payload, client, form=client.form_exchange)
     if not body.get("refresh_token"):
         raise AuthError("Login gav ikke et refresh-token")
     return _token_set(body, "", started)
@@ -198,11 +277,13 @@ class TokenManager:
         tokens: TokenSet,
         on_update: Callable[[TokenSet], None],
         clock: Callable[[], float] = time.time,
+        client: OAuthClient = CLAUDE,
     ) -> None:
         self._session = session
         self._tokens = tokens
         self._on_update = on_update
         self._clock = clock
+        self._client = client
         self._lock = asyncio.Lock()
 
     @property
@@ -234,14 +315,14 @@ class TokenManager:
         if not current.refresh_token:
             raise AuthError("Intet refresh-token")
         started = self._clock()
-        body = await _post_token(
-            self._session,
-            {
-                "grant_type": "refresh_token",
-                "refresh_token": current.refresh_token,
-                "client_id": OAUTH_CLIENT_ID,
-            },
-        )
+        payload = {
+            "grant_type": "refresh_token",
+            "refresh_token": current.refresh_token,
+            "client_id": self._client.client_id,
+        }
+        if self._client.refresh_scope:
+            payload["scope"] = self._client.refresh_scope
+        body = await _post_token(self._session, payload, self._client)
         new = _token_set(body, current.refresh_token, started)
         # Gem først: er refresh-tokenet roteret, er det gamle nu ubrugeligt.
         self._on_update(new)

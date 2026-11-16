@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .coordinator import ClaudeTimerConfigEntry, ClaudeTimerCoordinator
-from .entity import ClaudeTimerEntity, LimitEntity, track_limits
+from .entity import ClaudeTimerEntity, LimitEntity, is_chatgpt, object_prefix, track_limits
 from .usage import UsageLimit, forecast
 
 
@@ -77,6 +77,7 @@ class UsageSensor(LimitEntity, SensorEntity):
             "over_pace": fc.over_pace,
             "kind": limit.kind,
             "group": limit.group,
+            "provider": "chatgpt" if is_chatgpt(self.coordinator.config_entry) else "claude",
             "model": limit.model,
             "surface": limit.surface,
             "severity": limit.severity,
@@ -134,7 +135,7 @@ class ExtraUsageSensor(ClaudeTimerEntity, SensorEntity):
 
     def __init__(self, coordinator: ClaudeTimerCoordinator) -> None:
         super().__init__(coordinator, "extra_usage")
-        self.entity_id = "sensor.claude_timer_extra_usage"
+        self.entity_id = f"sensor.{object_prefix(coordinator.config_entry)}extra_usage"
 
     @property
     def _extra(self):
@@ -173,7 +174,7 @@ class LastFetchedSensor(ClaudeTimerEntity, SensorEntity):
 
     def __init__(self, coordinator: ClaudeTimerCoordinator) -> None:
         super().__init__(coordinator, "last_fetched")
-        self.entity_id = "sensor.claude_timer_last_fetched"
+        self.entity_id = f"sensor.{object_prefix(coordinator.config_entry)}last_fetched"
 
     @property
     def available(self) -> bool:
