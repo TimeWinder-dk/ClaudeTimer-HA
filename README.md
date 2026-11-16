@@ -36,7 +36,9 @@ konti får den næste konto endelsen `_2`.
 ChatGPT-entiteterne hedder det samme med `chatgpt_` foran grænsen, fx
 `sensor.claude_timer_chatgpt_session_usage`, `sensor.claude_timer_chatgpt_weekly_reset`
 og `sensor.claude_timer_chatgpt_last_fetched`, og forbrugssensoren har attributten
-`provider: chatgpt`. I kortet står der "CHATGPT ·" foran overskriften.
+`provider: chatgpt`. I oversigten står ChatGPT som en række (sidst) i samme kort som
+Claudes grænse af samme type. På ChatGPT-kontoens egen fane står der "CHATGPT ·"
+foran overskriften.
 
 ## Visninger: Claude Timer-kortet og -dashboardet
 

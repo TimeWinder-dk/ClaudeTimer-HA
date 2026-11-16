@@ -131,6 +131,16 @@ export function slugOf(entityId) {
   return m ? m[1] : null;
 }
 
+/**
+ * Nøgle til oversigten: ChatGPTs grænser samles med Claudes af samme type, fx
+ * "chatgpt_session" med "session". Rækkens kontonavn ("ChatGPT · …") skiller dem.
+ */
+export function compareKey(slug) {
+  return slug.replace(/^chatgpt_/, "");
+}
+
+const isChatGpt = (limit) => limit.state.attributes.provider === "chatgpt";
+
 /** Visningsnavn for en konto: brugerens eget navn først, uden "Claude · "-præfikset. */
 export function accountName(device) {
   const name = device?.name_by_user || device?.name || "";
@@ -456,7 +466,8 @@ class ClaudeTimerCard extends Base {
 
   /** Ét kort for én grænse med alle konti: rækker med tekst eller små målere. */
   _compareTile(group, names, t, locale, colors, now) {
-    const head = limitInfo(group[0], t, locale, now);
+    // Overskriften fra en Claude-række, så "CHATGPT ·" kun står der, når kortet kun har ChatGPT.
+    const head = limitInfo(group.find((l) => !isChatGpt(l)) || group[0], t, locale, now);
     const items = group.map((l) => ({ name: names[l.entry.device_id], i: limitInfo(l, t, locale, now) }));
     const body =
       this._view === "gauges"
@@ -500,9 +511,12 @@ class ClaudeTimerCard extends Base {
     if (layout === "compare") {
       const order = Object.fromEntries(accounts.map((a, n) => [a.id, n]));
       const groups = new Map();
-      for (const l of limits) groups.set(l.slug, [...(groups.get(l.slug) || []), l]);
+      for (const l of limits) {
+        const key = compareKey(l.slug);
+        groups.set(key, [...(groups.get(key) || []), l]);
+      }
       body = [...groups.values()]
-        .map((g) => g.sort((a, b) => order[a.entry.device_id] - order[b.entry.device_id]))
+        .map((g) => g.sort((a, b) => isChatGpt(a) - isChatGpt(b) || order[a.entry.device_id] - order[b.entry.device_id]))
         .map((g) => this._compareTile(g, names, t, locale, colors, now))
         .join("");
     } else {
